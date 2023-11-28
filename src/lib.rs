@@ -44,15 +44,15 @@ pub mod prelude {
     pub use crate::closure::Closure;
     pub use crate::exception::{PhpException, PhpResult};
     pub use crate::php_class;
-    pub use crate::php_const;
     pub use crate::php_extern;
     pub use crate::php_function;
     pub use crate::php_impl;
     pub use crate::php_module;
     pub use crate::php_print;
     pub use crate::php_println;
-    pub use crate::php_startup;
     pub use crate::types::ZendCallable;
+    pub use crate::wrap_constant;
+    pub use crate::wrap_function;
     pub use crate::ZvalConvert;
 }
 
@@ -64,33 +64,6 @@ pub const PHP_DEBUG: bool = cfg!(php_debug);
 
 /// Whether the extension is compiled for PHP thread-safe mode.
 pub const PHP_ZTS: bool = cfg!(php_zts);
-
-/// Attribute used to annotate constants to be exported to PHP.
-///
-/// The declared constant is left intact (apart from the addition of the
-/// `#[allow(dead_code)]` attribute in the case that you do not use the Rust
-/// constant).
-///
-/// These declarations must happen before you declare your [`macro@php_startup`]
-/// function (or [`macro@php_module`] function if you do not have a startup
-/// function).
-///
-/// # Example
-///
-/// ```
-/// # #![cfg_attr(windows, feature(abi_vectorcall))]
-/// # use ext_php_rs::prelude::*;
-/// #[php_const]
-/// const TEST_CONSTANT: i32 = 100;
-///
-/// #[php_const]
-/// const ANOTHER_CONST: &str = "Hello, world!";
-/// # #[php_module]
-/// # pub fn module(module: ModuleBuilder) -> ModuleBuilder {
-/// #     module
-/// # }
-/// ```
-pub use ext_php_rs_derive::php_const;
 
 /// Attribute used to annotate `extern` blocks which are deemed as PHP
 /// functions.
@@ -311,10 +284,6 @@ pub use ext_php_rs_derive::php_function;
 /// be called from Rust. Methods do generate an additional function, with an
 /// identifier in the format `_internal_php_#ident`.
 ///
-/// Methods and constants are declared mostly the same as their global
-/// counterparts, so read the documentation on the [`macro@php_function`] and
-/// [`macro@php_const`] macros for more details.
-///
 /// The main difference is that the contents of the `impl` block *do not* need
 /// to be tagged with additional attributes - this macro assumes that all
 /// contents of the `impl` block are to be exported to PHP.
@@ -455,10 +424,6 @@ pub use ext_php_rs_derive::php_module;
 /// * `#[implements(ce)]` - Implements an interface on the new class. Can be
 ///   used multiple times, and `ce` may be any valid expression.
 ///
-/// This attribute (and its associated structs) must be defined *above* the
-/// startup function (which is annotated by the [`macro@php_startup`] macro, or
-/// automatically generated just above the [`macro@php_module`] function).
-///
 /// Fields defined on the struct *are not* the same as PHP properties, and are
 /// only accessible from Rust.
 ///
@@ -492,7 +457,7 @@ pub use ext_php_rs_derive::php_module;
 /// use ext_php_rs::zend::ce;
 ///
 /// #[php_class(name = "Redis\\Exception\\RedisException")]
-/// #[extends(ce::exception())]
+/// #[extends(ce::exception)]
 /// pub struct Example;
 ///
 /// #[php_function]
@@ -506,41 +471,6 @@ pub use ext_php_rs_derive::php_module;
 /// }
 /// ```
 pub use ext_php_rs_derive::php_class;
-
-/// Annotates a function that will be called by PHP when the module starts up.
-/// Generally used to register classes and constants.
-///
-/// As well as annotating the function, any classes and constants that had been
-/// declared using the [`macro@php_class`], [`macro@php_const`] and
-/// [`macro@php_impl`] attributes will be registered inside this function.
-///
-/// This function *must* be declared before the [`macro@php_module`] function,
-/// as this function needs to be declared when building the module.
-///
-/// This function will automatically be generated if not already declared with
-/// this macro if you have registered any classes or constants when using the
-/// [`macro@php_module`] macro.
-///
-/// The attribute accepts one optional flag -- `#[php_startup(before)]` --
-/// which forces the annotated function to be called _before_ the other classes
-/// and constants are registered. By default the annotated function is called
-/// after these classes and constants are registered.
-///
-/// # Example
-///
-/// ```
-/// # #![cfg_attr(windows, feature(abi_vectorcall))]
-/// # use ext_php_rs::prelude::*;
-/// #[php_startup]
-/// pub fn startup_function() {
-///     // do whatever you need to do...
-/// }
-/// # #[php_module]
-/// # pub fn module(module: ModuleBuilder) -> ModuleBuilder {
-/// #     module
-/// # }
-/// ```
-pub use ext_php_rs_derive::php_startup;
 
 /// Derives the traits required to convert a struct or enum to and from a
 /// [`Zval`]. Both [`FromZval`] and [`IntoZval`] are implemented on types which
@@ -712,3 +642,5 @@ pub use ext_php_rs_derive::ZvalConvert;
 /// The `vectorcall` ABI is currently only supported on Windows with nightly
 /// Rust and the `abi_vectorcall` feature enabled.
 pub use ext_php_rs_derive::zend_fastcall;
+
+pub use ext_php_rs_derive::wrap_function;
